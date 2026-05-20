@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nepohualtzintzin Multijugador - Colegio Ciprés</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --bg-color: #f4f6f7;
+            --card-bg: #ffffff;
+            --success: #27ae60;
+            --error: #c0392b;
+            --level-up: #2980b9;
+            --cipres-green: #007A3E;
+            
+            --nepo-frame: #f2e6d0;
+            --nepo-bar: #b83b30;
+            --separator-wood: #d9c5a3;
+            --bead-yellow: #fab1a0;
+            --bead-yellow-border: #e17055;
+            --bead-red: #d63031;
+            --bead-red-border: #a22021;
+            --bead-blue: #74b9ff;
+            --bead-blue-border: #0984e3;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            color: #2c3e50;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* --- Pantalla de Inicio (Login) --- */
+        .login-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--primary); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 100; color: white;
+        }
+        .login-box {
+            background: white; padding: 40px; border-radius: 12px; text-align: center;
+            color: var(--primary); box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-width: 400px; width: 90%;
+        }
+        .login-box input {
+            width: 100%; padding: 12px; margin: 15px 0; border: 2px solid #bdc3c7;
+            border-radius: 6px; font-size: 1.1rem; text-align: center;
+        }
+        .connection-status {
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        .status-connecting { color: #d35400; }
+        .status-ready { color: var(--success); }
+
+        /* --- Layout de Juego + Tabla de Posiciones --- */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 25px;
+            width: 100%;
+            max-width: 1350px;
+            margin-top: 20px;
+        }
+
+        /* Contenedor Principal del Ábaco */
+        .game-container {
+            background: var(--card-bg);
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        /* --- Panel de Líderes En Vivo (Leaderboard) --- */
+        .leaderboard-container {
+            background: var(--card-bg);
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .leaderboard-title {
+            font-size: 1.3rem; font-weight: bold; color: var(--primary);
+            margin-bottom: 15px; text-align: center; border-bottom: 3px solid var(--cipres-green);
+            padding-bottom: 8px;
+        }
+        .leaderboard-list { list-style: none; overflow-y: auto; max-height: 500px; }
+        .leaderboard-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 12px; margin-bottom: 8px; background: #f8f9fa;
+            border-radius: 6px; font-weight: 600; border-left: 4px solid #ccc;
+        }
+        .leaderboard-item.is-me { border-left-color: var(--cipres-green); background: #e8f8f5; }
+        .player-rank { color: #7f8c8d; margin-right: 8px; }
+
+        /* --- Estructura Visual del Nepohualtzintzin --- */
+        .scoreboard { display: flex; justify-content: space-around; margin-bottom: 25px; font-size: 1.1rem; font-weight: bold; }
+        .score { color: var(--success); }
+        .errors { color: var(--error); }
+        .level-badge { color: var(--level-up); }
+
+        .panels-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; }
+        .target-box { background: #eaeded; padding: 15px; border-radius: 10px; font-size: 1.1rem; }
+        .target-number { font-size: 2.4rem; font-weight: 900; color: #b83b30; display: block; }
+        .current-box { background: #e8f8f5; padding: 15px; border-radius: 10px; font-size: 1.1rem; border: 2px dashed #117a65; }
+        .current-number { font-size: 2.4rem; font-weight: 900; color: #117a65; display: block; }
+
+        .nepohual-board {
+            background: var(--nepo-frame); border: 14px solid #dfcfb7; border-radius: 14px;
+            padding: 15px 25px; display: flex; flex-direction: row-reverse; justify-content: flex-start;
+            position: relative; margin-bottom: 25px; box-shadow: inset 0 0 20px rgba(0,0,0,0.15), 0 6px 12px rgba(0,0,0,0.1);
+            min-height: 400px; overflow-x: auto; gap: 0;
+        }
+        .nepohual-board::after { content: ''; position: absolute; left: 0; right: 0; top: 160px; height: 16px; background: var(--nepo-bar); z-index: 3; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .matrix-separator { width: 18px; background: var(--separator-wood); height: 350px; z-index: 4; box-shadow: inset 2px 0 5px rgba(0,0,0,0.15), inset -2px 0 5px rgba(0,0,0,0.15); margin: 0 5px; border-radius: 4px; }
+        
+        .column { display: flex; flex-direction: column; align-items: center; justify-content: space-between; width: 75px; position: relative; height: 350px; }
+        .column::before { content: ''; position: absolute; width: 4px; background: #b2babb; top: 0; bottom: 0; left: 50%; transform: translateX(-50%); z-index: 1; }
+        .upper-deck, .lower-deck { display: flex; flex-direction: column; width: 100%; align-items: center; z-index: 2; position: relative; }
+        .upper-deck { justify-content: flex-start; height: 145px; gap: 2px; }
+        .lower-deck { justify-content: flex-end; height: 165px; gap: 2px; }
+
+        /* Cuentas estilo grano de maíz */
+        .bead {
+            width: 94%; height: 28px; border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%; cursor: pointer;
+            transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), filter 0.2s;
+            box-shadow: 0 4px 5px rgba(0,0,0,0.3), inset 0 3px 2px rgba(255,255,255,0.4);
+        }
+        .bead.yellow { background: var(--bead-yellow); border: 2.5px solid var(--bead-yellow-border); }
+        .bead.red { background: var(--bead-red); border: 2.5px solid var(--bead-red-border); }
+        .bead.blue { background: var(--bead-blue); border: 2.5px solid var(--bead-blue-border); }
+
+        .upper-deck .bead:nth-child(1).active { transform: translateY(54px); }
+        .upper-deck .bead:nth-child(2).active { transform: translateY(54px); }
+        .upper-deck .bead:nth-child(3).active { transform: translateY(54px); }
+        .lower-deck .bead:nth-child(1).active { transform: translateY(-48px); }
+        .lower-deck .bead:nth-child(2).active { transform: translateY(-48px); }
+        .lower-deck .bead:nth-child(3).active { transform: translateY(-48px); }
+        .lower-deck .bead:nth-child(4).active { transform: translateY(-48px); }
+        .bead.active { filter: brightness(1.1) contrast(1.05); }
+
+        .value-label { margin-top: 8px; font-weight: bold; color: #ffffff; background: #2c3e50; padding: 2px 5px; border-radius: 4px; font-size: 0.7rem; z-index: 5; white-space: nowrap; }
+        
+        .btn { background-color: #b83b30; color: white; border: none; padding: 15px 30px; font-size: 1.1rem; font-weight: bold; border-radius: 8px; cursor: pointer; transition: background 0.2s; width: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.15); }
+        .btn:hover { background-color: #912b23; }
+        .btn:disabled { background-color: #bdc3c7; cursor: not-allowed; box-shadow: none; }
+        .disabled { pointer-events: none; opacity: 0.9; }
+
+        .feedback { margin-top: 20px; padding: 15px; border-radius: 8px; font-weight: bold; font-size: 1.1rem; display: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .feedback.correct { background-color: #d4efdf; color: #27ae60; display: block; border-left: 5px solid #27ae60; }
+        .feedback.incorrect { background-color: #fadbd8; color: #c0392b; display: block; border-left: 5px solid #c0392b; }
+        .feedback.levelup { background-color: #d6eaf8; color: var(--level-up); display: block; border-left: 5px solid var(--level-up); }
+
+        /* --- PANTALLA FINAL DE RESULTADOS --- */
+        .results-screen {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.98); border-radius: 15px; z-index: 10;
+            flex-direction: column; align-items: center; justify-content: center; padding: 30px;
+        }
+        .results-title { font-size: 2.2rem; font-weight: 800; margin-bottom: 10px; }
+        .results-title.win { color: var(--success); }
+        .results-title.lose { color: var(--error); }
+        .results-table { width: 100%; max-width: 500px; border-collapse: collapse; margin-bottom: 30px; background: #f8f9fa; border-radius: 8px; overflow: hidden; }
+        .results-table th, .results-table td { padding: 14px 20px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 1.1rem; }
+        .results-table th { background-color: var(--primary); color: white; }
+        .results-table td:last-child { text-align: right; font-weight: bold; }
+
+        @media (max-width: 900px) {
+            .main-layout { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen" class="login-screen">
+        <div class="login-box">
+            <h2>¡Bienvenido al Nepohualtzintzin!</h2>
+            <p style="color: #7f8c8d; font-size: 0.9rem; margin-top: 5px; margin-bottom: 15px;">Colegio Ciprés - En Vivo</p>
+            
+            <div id="connection-status" class="connection-status status-connecting">Conectando al servidor de la clase...</div>
+            
+            <input type="text" id="username-input" placeholder="Escribe tu Nombre completo" maxlength="20">
+            <button id="login-btn" class="btn" style="background-color: var(--cipres-green);" onclick="joinGame()" disabled>Entrar a la Clase</button>
+        </div>
+    </div>
+
+    <header>
+        <div class="title-group">
+            <h1 id="game-title">Nepohualtzintzin Decimal</h1>
+            <p class="subtitle">Estructura Base 10 Progresiva - Competición Multijugador</p>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <div class="game-container">
+            <div class="scoreboard">
+                <div>Mis Puntos: <span id="score" class="score">0</span></div>
+                <div>Mi Nivel: <span id="level" class="level-badge">1</span>/3</div>
+                <div>Errores: <span id="errors" class="errors">0</span>/5</div>
+            </div>
+
+            <div class="panels-container">
+                <div class="target-box">Representa la cantidad: <span id="target-number" class="target-number">--</span></div>
+                <div class="current-box">Tu cuenta actual: <span id="current-number" class="current-number">0</span></div>
+            </div>
+
+            <div class="nepohual-board" id="abacus"></div>
+            <button class="btn" id="verify-btn" onclick="checkAnswer()">Validar Cuenta Nepo</button>
+            <div id="feedback" class="feedback"></div>
+
+            <div id="results-screen" class="results-screen">
+                <h2 id="results-title" class="results-title">Fin de la Partida</h2>
+                <table class="results-table">
+                    <tr><td>Puntaje Final</td><td id="res-score" style="color: var(--success);">0 pts</td></tr>
+                    <tr><td>Nivel Máximo</td><td id="res-level">Nivel 1</td></tr>
+                    <tr><td>Aciertos</td><td id="res-hits" style="color: var(--success);">0</td></tr>
+                    <tr><td>Errores Cometidos</td><td id="res-misses" style="color: var(--error);">0</td></tr>
+                </table>
+                <button class="btn" style="background-color: var(--cipres-green); max-width: 300px;" onclick="resetGame()">Volver a Intentarlo</button>
+            </div>
+        </div>
+
+        <div class="leaderboard-container">
+            <div class="leaderboard-title">🏆 Posiciones de la Clase</div>
+            <ul id="leaderboard-list" class="leaderboard-list">
+                <li style="text-align: center; color: #7f8c8d; padding-top: 20px;">Esperando alumnos...</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // CONEXIÓN CON EL SERVIDOR
+        const socket = io();
+
+        let score = 0;
+        let errors = 0;
+        let hits = 0;       
+        let totalErrors = 0; 
+        let currentLevel = 1;
+        let targetNumber = 0;
+        const maxErrors = 5;
+
+        const nepohualStructure = [
+            { label: 'Unidades (1)', mult: 1, color: 'yellow', matrix: 1 },
+            { label: 'Decenas (10)', mult: 10, color: 'red', matrix: 1 },
+            { label: 'Centenas (100)', mult: 100, color: 'red', matrix: 1 },
+            { label: 'Unidades de Millar (1K)', mult: 1000, color: 'blue', matrix: 2 },
+            { label: 'Decenas de Millar (10K)', mult: 10000, color: 'blue', matrix: 2 },
+            { label: 'Centenas de Millar (100K)', mult: 100000, color: 'blue', matrix: 2 },
+            { label: 'Unidades de Millón (1M)', mult: 1000000, color: 'blue', matrix: 3 }
+        ];
+
+        // VALIDACIÓN DE RED: Esperar a que los sockets estén enlazados
+        socket.on('connect', () => {
+            const statusDiv = document.getElementById('connection-status');
+            const loginBtn = document.getElementById('login-btn');
+            
+            statusDiv.innerText = "¡Conectado exitosamente!";
+            statusDiv.className = "connection-status status-ready";
+            loginBtn.removeAttribute('disabled'); // Activa el botón de forma segura
+        });
+
+        // Enviar el nombre ingresado al servidor
+        function joinGame() {
+            const nameInput = document.getElementById('username-input').value.trim();
+            if(nameInput === "") { alert("Por favor escribe tu nombre."); return; }
+            
+            socket.emit('registerPlayer', nameInput);
+            document.getElementById('login-screen').style.display = 'none';
+            initRound();
+        }
+
+        // Escuchar la actualización del Leaderboard que manda el servidor
+        socket.on('updateLeaderboard', (playersList) => {
+            const listContainer = document.getElementById('leaderboard-list');
+            listContainer.innerHTML = '';
+
+            playersList.sort((a, b) => b.score - a.score);
+
+            playersList.forEach((player, index) => {
+                const item = document.createElement('li');
+                item.className = `leaderboard-item ${player.id === socket.id ? 'is-me' : ''}`;
+                item.innerHTML = `
+                    <div>
+                        <span class="player-rank">#${index + 1}</span>
+                        <span>${player.username} ${player.id === socket.id ? '(Tú)' : ''}</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="color: var(--success);">${player.score} pts</span>
+                        <br><small style="color: #7f8c8d; font-size: 0.75rem;">Nivel ${player.level}</small>
+                    </div>
+                `;
+                listContainer.appendChild(item);
+            });
+        });
+
+        function initRound() {
+            let activeColumnsCount = 3; 
+            if (currentLevel === 2) activeColumnsCount = 6; 
+            if (currentLevel >= 3) activeColumnsCount = 7; 
+
+            buildNepohual(activeColumnsCount);
+            calculateTarget(activeColumnsCount);
+            updateInterface();
+            enableControls(true);
+            updateLiveCounter();
+        }
+
+        function calculateTarget(count) {
+            let maxLimit = 0;
+            for(let i = 0; i < count; i++) { maxLimit += (nepohualStructure[i].mult * 9); }
+            targetNumber = Math.floor(Math.random() * maxLimit) + 1; 
+            document.getElementById('target-number').innerText = targetNumber.toLocaleString('es-ES');
+        }
+
+        function buildNepohual(count) {
+            const abacusContainer = document.getElementById('abacus');
+            abacusContainer.innerHTML = '';
+            let currentMatrix = 1;
+            const columnsToRender = nepohualStructure.slice(0, count);
+
+            columnsToRender.forEach((col) => {
+                if (col.matrix !== currentMatrix) {
+                    const separator = document.createElement('div');
+                    separator.className = 'matrix-separator';
+                    abacusContainer.appendChild(separator);
+                    currentMatrix = col.matrix;
+                }
+
+                const colDiv = document.createElement('div');
+                colDiv.className = 'column';
+                colDiv.setAttribute('data-multiplier', col.mult);
+                colDiv.innerHTML = `
+                    <div class="upper-deck">
+                        <div class="bead ${col.color}" onclick="toggleUpperBead(this)"></div>
+                        <div class="bead ${col.color}" onclick="toggleUpperBead(this)"></div>
+                        <div class="bead ${col.color}" onclick="toggleUpperBead(this)"></div>
+                    </div>
+                    <div class="lower-deck">
+                        <div class="bead ${col.color}" onclick="toggleLowerBead(this)"></div>
+                        <div class="bead ${col.color}" onclick="toggleLowerBead(this)"></div>
+                        <div class="bead ${col.color}" onclick="toggleLowerBead(this)"></div>
+                        <div class="bead ${col.color}" onclick="toggleLowerBead(this)"></div>
+                    </div>
+                    <div class="value-label">${col.label}</div>
+                `;
+                abacusContainer.appendChild(colDiv);
+            });
+        }
+
+        function toggleUpperBead(beadElement) {
+            const upperBeads = Array.from(beadElement.parentElement.children);
+            const index = upperBeads.indexOf(beadElement);
+            const isCurrentActive = beadElement.classList.contains('active');
+            upperBeads.forEach((b, i) => {
+                if (isCurrentActive) { if (i <= index) b.classList.remove('active'); } 
+                else { if (i >= index) b.classList.add('active'); }
+            });
+            document.getElementById('feedback').style.display = 'none';
+            updateLiveCounter();
+        }
+
+        function toggleLowerBead(beadElement) {
+            const lowerBeads = Array.from(beadElement.parentElement.children);
+            const index = lowerBeads.indexOf(beadElement);
+            const isCurrentActive = beadElement.classList.contains('active');
+            lowerBeads.forEach((b, i) => {
+                if (isCurrentActive) { if (i >= index) b.classList.remove('active'); } 
+                else { if (i <= index) b.classList.add('active'); }
+            });
+            document.getElementById('feedback').style.display = 'none';
+            updateLiveCounter();
+        }
+
+        function getNepohualValue() {
+            let total = 0;
+            document.querySelectorAll('.column').forEach(column => {
+                const multiplier = parseInt(column.getAttribute('data-multiplier'));
+                let columnValue = 0;
+                column.querySelectorAll('.upper-deck .bead').forEach(bead => { if (bead.classList.contains('active')) columnValue += 5; });
+                column.querySelectorAll('.lower-deck .bead').forEach(bead => { if (bead.classList.contains('active')) columnValue += 1; });
+                total += columnValue * multiplier;
+            });
+            return total;
+        }
+
+        function updateLiveCounter() {
+            document.getElementById('current-number').innerText = getNepohualValue().toLocaleString('es-ES');
+        }
+
+        function enableControls(enable) {
+            const container = document.getElementById('abacus');
+            const btn = document.getElementById('verify-btn');
+            if (enable) { container.classList.remove('disabled'); btn.removeAttribute('disabled'); } 
+            else { container.classList.add('disabled'); btn.setAttribute('disabled', 'true'); }
+        }
+
+        function updateInterface() {
+            document.getElementById('score').innerText = score;
+            document.getElementById('errors').innerText = errors;
+            document.getElementById('level').innerText = currentLevel;
+            document.getElementById('game-title').innerText = `Nepohualtzintzin Decimal - Nivel ${currentLevel}`;
+
+            // REPORTAR NUEVA PUNTUACIÓN AL SERVIDOR EN TIEMPO REAL
+            socket.emit('updateScore', { score: score, level: currentLevel });
+        }
+
+        function showEndScreen(isVictory) {
+            const screen = document.getElementById('results-screen');
+            const title = document.getElementById('results-title');
+            if (isVictory) { title.innerText = "¡Felicidades, Completaste el Juego!"; title.className = "results-title win"; } 
+            else { title.innerText = "Partida Terminada (5 Errores)"; title.className = "results-title lose"; }
+
+            document.getElementById('res-score').innerText = `${score} pts`;
+            document.getElementById('res-level').innerText = `Nivel ${currentLevel}`;
+            document.getElementById('res-hits').innerText = hits;
+            document.getElementById('res-misses').innerText = totalErrors;
+            screen.style.display = 'flex';
+        }
+
+        function resetGame() {
+            score = 0; errors = 0; hits = 0; totalErrors = 0; currentLevel = 1;
+            document.getElementById('results-screen').style.display = 'none';
+            document.getElementById('feedback').style.display = 'none';
+            initRound();
+        }
+
+        function checkAnswer() {
+            const userValue = getNepohualValue();
+            const feedbackDiv = document.getElementById('feedback');
+
+            if (userValue === targetNumber) {
+                score += 10; hits += 1; errors = 0; 
+                let calculatedLevel = Math.floor(score / 50) + 1; 
+
+                if (calculatedLevel > 3 && currentLevel === 3) { showEndScreen(true); return; }
+                if (calculatedLevel > 3) calculatedLevel = 3;
+
+                if (calculatedLevel > currentLevel) {
+                    currentLevel = calculatedLevel;
+                    feedbackDiv.innerText = `¡Subiste al Nivel ${currentLevel}! Siguiente matriz decimal desbloqueada.`;
+                    feedbackDiv.className = "feedback levelup";
+                } else {
+                    feedbackDiv.innerText = `¡Correcto! Representa exactamente el número ${userValue.toLocaleString('es-ES')}.`;
+                    feedbackDiv.className = "feedback correct";
+                }
+                updateInterface();
+                enableControls(false);
+                setTimeout(() => { initRound(); feedbackDiv.style.display = "none"; }, 2000);
+            } else {
+                errors += 1; totalErrors += 1;
+                updateInterface();
+                if (errors >= maxErrors) { enableControls(false); showEndScreen(false); } 
+                else {
+                    feedbackDiv.innerText = `¡No es correcta! Tu tablero marca ${userValue.toLocaleString('es-ES')}. Revisa tus cuentas de maíz.`;
+                    feedbackDiv.className = "feedback incorrect";
+                }
+            }
+        }
+    </script>
+</body>
+</html>
