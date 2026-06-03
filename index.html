@@ -111,7 +111,25 @@
         
         .column { display: flex; flex-direction: column; align-items: center; justify-content: space-between; width: 70px; position: relative; height: 340px; }
         .column::before { content: ''; position: absolute; width: 4px; background: #b2babb; top: 0; bottom: 0; left: 50%; transform: translateX(-50%); z-index: 1; }
-        
+        /* Espacio físico para las 3 cuentas de arriba y las 4 de abajo */
+        .upper-deck {
+            width: 100%;
+            height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            gap: 3px;
+            z-index: 5;
+        }
+.lower-deck {
+    width: 100%;
+    height: 180px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 3px;
+    z-index: 5;
+}
         /* CUENTAS FORMA MAÍZ */
         .bead {
             width: 92%; height: 26px; 
