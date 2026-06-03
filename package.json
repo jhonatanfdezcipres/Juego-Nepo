@@ -1,6 +1,7 @@
 {
-  "name": "nepo-online",
+  "name": "juego-nepo",
   "version": "1.0.0",
+  "description": "Juego Nepohualtzintzin con salas por sesion - Colegio Cipres",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
