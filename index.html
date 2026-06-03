@@ -15,7 +15,7 @@
             --level-up: #2980b9;
             --cipres-green: #007A3E;
             
-            /* Colores fieles a tu imagen de referencia */
+            /* Colores del ábaco */
             --nepo-frame: #f2e6d0;
             --nepo-bar: #b83b30;
             --separator-wood: #d9c5a3;
@@ -57,7 +57,7 @@
         .status-connecting { color: #d35400; }
         .status-ready { color: var(--success); }
 
-        /* --- LAYOUT PRINCIPAL: ÁBACO + LEADERBOARD --- */
+        /* --- LAYOUT PRINCIPAL --- */
         .main-layout {
             display: grid;
             grid-template-columns: 1fr 300px;
@@ -76,7 +76,6 @@
             position: relative;
         }
 
-        /* TABLA DE POSICIONES LATERAL */
         .leaderboard-container {
             background: var(--card-bg);
             border-radius: 15px;
@@ -91,6 +90,301 @@
         .leaderboard-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
         .leaderboard-item.is-me { background: #e8f8f5; font-weight: bold; border-radius: 4px; }
 
-        /* --- DISEÑO DEL NEPO (BASE 10) --- */
         .scoreboard { display: flex; justify-content: space-around; margin-bottom: 20px; font-weight: bold; }
-        .panels-container { display: grid; grid-template-columns: 1fr
+        .panels-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .target-box, .current-box { padding: 10px; border-radius: 10px; }
+        .target-box { background: #eaeded; }
+        .current-box { background: #e8f8f5; border: 2px dashed #117a65; }
+        .target-number, .current-number { font-size: 2rem; font-weight: 900; display: block; }
+        .target-number { color: #b83b30; }
+        .current-number { color: #117a65; }
+
+        /* --- DISEÑO DEL NEPO --- */
+        .nepohual-board {
+            background: var(--nepo-frame); border: 12px solid #dfcfb7; border-radius: 14px;
+            padding: 10px 20px; display: flex; flex-direction: row-reverse;
+            position: relative; margin-bottom: 20px; min-height: 380px; box-shadow: inset 0 0 15px rgba(0,0,0,0.1);
+        }
+        .nepohual-board::after { content: ''; position: absolute; left: 0; right: 0; top: 150px; height: 14px; background: var(--nepo-bar); z-index: 3; }
+        .matrix-separator { width: 15px; background: var(--separator-wood); height: 340px; z-index: 4; margin: 0 5px; border-radius: 3px; }
+        
+        .column { display: flex; flex-direction: column; align-items: center; justify-content: space-between; width: 70px; position: relative; height: 340px; }
+        .column::before { content: ''; position: absolute; width: 4px; background: #b2babb; top: 0; bottom: 0; left: 50%; transform: translateX(-50%); z-index: 1; }
+        
+        .upper-deck {
+            width: 100%;
+            height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            gap: 4px;
+            z-index: 5;
+        }
+
+        .lower-deck {
+            width: 100%;
+            height: 180px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            gap: 4px;
+            z-index: 5;
+        }
+
+        /* CUENTAS MAÍZ */
+        .bead {
+            width: 100%; height: 26px; 
+            border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+            cursor: pointer; transition: transform 0.2s;
+            box-shadow: 0 3px 4px rgba(0,0,0,0.2), inset 0 2px 2px rgba(255,255,255,0.4);
+        }
+        .bead.yellow { background: var(--bead-yellow); border: 2px solid var(--bead-yellow-border); }
+        .bead.red { background: var(--bead-red); border: 2px solid var(--bead-red-border); }
+        .bead.blue { background: var(--bead-blue); border: 2px solid var(--bead-blue-border); }
+
+        /* Movimientos físicos */
+        .upper-deck .bead:nth-child(1).active { transform: translateY(52px); }
+        .upper-deck .bead:nth-child(2).active { transform: translateY(52px); }
+        .upper-deck .bead:nth-child(3).active { transform: translateY(52px); }
+        .lower-deck .bead:nth-child(1).active { transform: translateY(-46px); }
+        .lower-deck .bead:nth-child(2).active { transform: translateY(-46px); }
+        .lower-deck .bead:nth-child(3).active { transform: translateY(-46px); }
+        .lower-deck .bead:nth-child(4).active { transform: translateY(-46px); }
+
+        .value-label { background: #2c3e50; color: white; padding: 2px 5px; border-radius: 4px; font-size: 0.65rem; z-index: 5; margin-top: 5px; }
+
+        .btn { background-color: #b83b30; color: white; border: none; padding: 15px; font-size: 1.1rem; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%; }
+        .btn:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+
+        .feedback { margin-top: 15px; padding: 12px; border-radius: 8px; font-weight: bold; display: none; }
+        .feedback.correct { background: #d4efdf; color: #27ae60; display: block; }
+        .feedback.incorrect { background: #fadbd8; color: #c0392b; display: block; }
+
+        .results-screen {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.98); z-index: 10; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
+        }
+        .results-table { width: 100%; max-width: 400px; border-collapse: collapse; margin: 20px 0; }
+        .results-table td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+        .results-table td:last-child { text-align: right; font-weight: bold; }
+
+        @media (max-width: 800px) { .main-layout { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen" class="login-screen">
+        <div class="login-box">
+            <h2>¡Hola Maestro del Nepo!</h2>
+            <div id="connection-status" class="connection-status status-connecting">Conectando al servidor...</div>
+            <input type="text" id="username-input" placeholder="Tu Nombre">
+            <input type="text" id="room-input" placeholder="Código de Sesión (Ej: 3A)" style="text-transform: uppercase;">
+            <button id="login-btn" class="btn" style="background-color: var(--cipres-green);" onclick="joinGame()" disabled>Entrar a Clase</button>
+        </div>
+    </div>
+
+    <header style="text-align: center; margin-bottom: 10px;">
+        <h1 id="game-title">Nepohualtzintzin Decimal</h1>
+    </header>
+
+    <div class="main-layout">
+        <div class="game-container">
+            <div class="scoreboard">
+                <div>Puntos: <span id="score" class="score">0</span></div>
+                <div>Nivel: <span id="level" class="level-badge">1</span>/3</div>
+                <div>Errores: <span id="errors" class="errors">0</span>/5</div>
+            </div>
+
+            <div class="panels-container">
+                <div class="target-box">Pon este número: <span id="target-number" class="target-number">--</span></div>
+                <div class="current-box">Tu cuenta: <span id="current-number" class="current-number">0</span></div>
+            </div>
+
+            <div class="nepohual-board" id="abacus"></div>
+            <button class="btn" id="verify-btn" onclick="checkAnswer()">Validar Mi Cuenta</button>
+            <div id="feedback" class="feedback"></div>
+
+            <div id="results-screen" class="results-screen">
+                <h2 id="results-title">Resultados</h2>
+                <table class="results-table">
+                    <tr><td>Puntos</td><td id="res-score">0</td></tr>
+                    <tr><td>Nivel</td><td id="res-level">1</td></tr>
+                    <tr><td>Aciertos</td><td id="res-hits">0</td></tr>
+                    <tr><td>Errores</td><td id="res-misses">0</td></tr>
+                </table>
+                <button class="btn" style="background-color: var(--cipres-green); max-width: 250px;" onclick="resetGame()">Volver a Jugar</button>
+            </div>
+        </div>
+
+        <div class="leaderboard-container">
+            <div class="leaderboard-title">🏆 Top de la Clase</div>
+            <ul id="leaderboard-list" class="leaderboard-list"></ul>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let score = 0, errors = 0, hits = 0, totalErrors = 0, currentLevel = 1, targetNumber = 0;
+        const maxErrors = 5;
+
+        const nepohualStructure = [
+            { label: 'Unidades', mult: 1, color: 'yellow', matrix: 1 },
+            { label: 'Decenas', mult: 10, color: 'red', matrix: 1 },
+            { label: 'Centenas', mult: 100, color: 'red', matrix: 1 },
+            { label: 'Uni. Millar', mult: 1000, color: 'blue', matrix: 2 },
+            { label: 'Dec. Millar', mult: 10000, color: 'blue', matrix: 2 },
+            { label: 'Cen. Millar', mult: 100000, color: 'blue', matrix: 2 },
+            { label: 'Millón', mult: 1000000, color: 'blue', matrix: 3 }
+        ];
+
+        socket.on('connect', () => {
+            document.getElementById('connection-status').innerText = "¡Listo! Servidor conectado.";
+            document.getElementById('connection-status').className = "connection-status status-ready";
+            document.getElementById('login-btn').disabled = false;
+        });
+
+        function joinGame() {
+            const name = document.getElementById('username-input').value.trim();
+            const room = document.getElementById('room-input').value.trim().toUpperCase();
+            if(!name || !room) { alert("Llena todos los campos."); return; }
+            
+            socket.emit('registerPlayer', { username: name, roomCode: room });
+            document.getElementById('game-title').innerText = `Nepo - Sesión: ${room}`;
+            document.getElementById('login-screen').style.display = 'none';
+            initRound();
+        }
+
+        socket.on('updateLeaderboard', (players) => {
+            const list = document.getElementById('leaderboard-list');
+            list.innerHTML = '';
+            players.sort((a, b) => b.score - a.score).forEach((p, i) => {
+                const li = document.createElement('li');
+                li.className = `leaderboard-item ${p.id === socket.id ? 'is-me' : ''}`;
+                li.innerHTML = `<span>#${i+1} ${p.username}</span> <span>${p.score} pts</span>`;
+                list.appendChild(li);
+            });
+        });
+
+        function initRound() {
+            let cols = currentLevel === 1 ? 3 : currentLevel === 2 ? 6 : 7;
+            buildNepohual(cols);
+            calculateTarget(cols);
+            updateInterface();
+            updateLiveCounter();
+        }
+
+        function calculateTarget(count) {
+            let max = 0;
+            for(let i=0; i<count; i++) max += nepohualStructure[i].mult * 9;
+            targetNumber = Math.floor(Math.random() * max) + 1;
+            document.getElementById('target-number').innerText = targetNumber.toLocaleString('es-MX');
+        }
+
+        // FUNCIÓN CORREGIDA SEGURO: Generación clásica por bucles string HTML
+        function buildNepohual(count) {
+            const container = document.getElementById('abacus');
+            container.innerHTML = '';
+            let currentM = 1;
+
+            for (let i = 0; i < count; i++) {
+                const col = nepohualStructure[i];
+                
+                if (col.matrix !== currentM) {
+                    const sep = document.createElement('div');
+                    sep.className = 'matrix-separator';
+                    container.appendChild(sep);
+                    currentM = col.matrix;
+                }
+
+                const colDiv = document.createElement('div');
+                colDiv.className = 'column';
+                colDiv.setAttribute('data-mult', col.mult);
+
+                // Generamos las cuentas usando bucles tradicionales seguros
+                let upperBeadsHtml = '';
+                for (let u = 0; u < 3; u++) {
+                    upperBeadsHtml += '<div class="bead ' + col.color + '" onclick="toggleBead(this, true)"></div>';
+                }
+
+                let lowerBeadsHtml = '';
+                for (let l = 0; l < 4; l++) {
+                    lowerBeadsHtml += '<div class="bead ' + col.color + '" onclick="toggleBead(this, false)"></div>';
+                }
+
+                colDiv.innerHTML = `
+                    <div class="upper-deck">${upperBeadsHtml}</div>
+                    <div class="lower-deck">${lowerBeadsHtml}</div>
+                    <div class="value-label">${col.label}</div>
+                `;
+                
+                container.appendChild(colDiv);
+            }
+        }
+
+        function toggleBead(el, isUpper) {
+            const beads = Array.from(el.parentElement.children);
+            const idx = beads.indexOf(el);
+            const active = el.classList.contains('active');
+            beads.forEach((b, i) => {
+                if(isUpper) (active ? i <= idx : i >= idx) ? b.classList.remove('active') : b.classList.add('active');
+                else (active ? i >= idx : i <= idx) ? b.classList.remove('active') : b.classList.add('active');
+            });
+            updateLiveCounter();
+        }
+
+        function getVal() {
+            let total = 0;
+            document.querySelectorAll('.column').forEach(c => {
+                const m = parseInt(c.dataset.mult);
+                let colV = 0;
+                c.querySelectorAll('.upper-deck .bead.active').forEach(() => colV += 5);
+                c.querySelectorAll('.lower-deck .bead.active').forEach(() => colV += 1);
+                total += colV * m;
+            });
+            return total;
+        }
+
+        function updateLiveCounter() {
+            document.getElementById('current-number').innerText = getVal().toLocaleString('es-MX');
+        }
+
+        function updateInterface() {
+            document.getElementById('score').innerText = score;
+            document.getElementById('errors').innerText = errors;
+            document.getElementById('level').innerText = currentLevel;
+            socket.emit('updateScore', { score, level: currentLevel });
+        }
+
+        function checkAnswer() {
+            const val = getVal();
+            const feed = document.getElementById('feedback');
+            if(val === targetNumber) {
+                score += 10; hits++; errors = 0;
+                if(score % 50 === 0 && currentLevel < 3) currentLevel++;
+                feed.innerText = "¡Correcto!"; feed.className = "feedback correct";
+                updateInterface();
+                setTimeout(() => { feed.style.display='none'; initRound(); }, 1500);
+            } else {
+                errors++; totalErrors++;
+                if(errors >= maxErrors) {
+                    document.getElementById('res-score').innerText = score;
+                    document.getElementById('res-level').innerText = currentLevel;
+                    document.getElementById('res-hits').innerText = hits;
+                    document.getElementById('res-misses').innerText = totalErrors;
+                    document.getElementById('results-screen').style.display = 'flex';
+                } else {
+                    feed.innerText = `¡Incorrecto! Llevas ${val.toLocaleString('es-MX')}.`;
+                    feed.className = "feedback incorrect";
+                    updateInterface();
+                }
+            }
+        }
+
+        function resetGame() {
+            score=0; errors=0; hits=0; totalErrors=0; currentLevel=1;
+            document.getElementById('results-screen').style.display='none';
+            initRound();
+        }
+    </script>
+</body>
+</html>
